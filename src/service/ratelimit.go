@@ -183,8 +183,9 @@ func (this *service) shouldRateLimitWorker(
 	checkServiceErr(len(request.Descriptors) != 0, "rate limit descriptor list must not be empty")
 
 	snappedConfig, globalShadowMode := this.GetCurrentConfig()
+	// 根据配置文件解析出哪些描述符是（不）需要限流
 	limitsToCheck, isUnlimited := this.constructLimitsToCheck(request, ctx, snappedConfig)
-
+	// 调用缓存client执行限流操作，一般为Redis的令牌桶算法
 	responseDescriptorStatuses := this.cache.DoLimit(ctx, request, limitsToCheck)
 	assert.Assert(len(limitsToCheck) == len(responseDescriptorStatuses))
 
@@ -334,7 +335,7 @@ func NewService(cache limiter.RateLimitCache, configProvider provider.RateLimitC
 		newService.SetConfig(<-newService.configUpdateEvent, healthyWithAtLeastOneConfigLoad)
 		logger.Info("Successfully loaded the initial ratelimit configs")
 	}
-
+	// 时刻文件更新事件，从而获取到最新的配置文件内容
 	go func() {
 		for {
 			logger.Debug("Waiting for config update event")

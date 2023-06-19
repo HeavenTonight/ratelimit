@@ -109,12 +109,12 @@ func (runner *Runner) Run() {
 	}
 
 	serverReporter := metrics.NewServerReporter(runner.statsManager.GetStatsStore().ScopeWithTags("ratelimit_server", s.ExtraTags))
-
+	// 创建一个limit server服务，最主要的是会创建一个 config provider获取配置文件，并监听配置文件的改变，及时同步
 	srv := server.NewServer(s, "ratelimit", runner.statsManager, localCache, settings.GrpcUnaryInterceptor(serverReporter.UnaryServerInterceptor()))
 	runner.mu.Lock()
 	runner.srv = srv
 	runner.mu.Unlock()
-
+	// 创建自定义grpc服务实例，其中包括一个存放限流数据的缓存，默认为Redis，一个获取配置文件的config provider等
 	service := ratelimit.NewService(
 		createLimiter(srv, s, localCache, runner.statsManager),
 		srv.Provider(),
@@ -140,6 +140,7 @@ func (runner *Runner) Run() {
 	// Ratelimit is compatible with the below proto definition
 	// data-plane-api v3 rls.proto: https://github.com/envoyproxy/data-plane-api/blob/master/envoy/service/ratelimit/v3/rls.proto
 	// v2 proto is no longer supported
+	// 将自定义服务自测到grpc server
 	pb.RegisterRateLimitServiceServer(srv.GrpcServer(), service)
 
 	srv.Start()

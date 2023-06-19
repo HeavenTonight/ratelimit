@@ -32,7 +32,7 @@ func (p *FileProvider) Stop() {}
 
 func (p *FileProvider) watch() {
 	p.runtime.AddUpdateCallback(p.runtimeUpdateEvent)
-
+	// 监听 获取最新的文件变化
 	go func() {
 		p.sendEvent()
 		// No exit right now.
@@ -53,19 +53,20 @@ func (p *FileProvider) sendEvent() {
 	}()
 
 	files := []config.RateLimitConfigToLoad{}
+	// 获取RUNTIME_ROOT目录下最新的文件变化
 	snapshot := p.runtime.Snapshot()
 	for _, key := range snapshot.Keys() {
 		if p.runtimeWatchRoot && !strings.HasPrefix(key, p.settings.RuntimeAppDirectory+".") {
 			continue
 		}
-
+		// 解析yaml文件
 		configYaml := config.ConfigFileContentToYaml(key, snapshot.Get(key))
 		files = append(files, config.RateLimitConfigToLoad{Name: key, ConfigYaml: configYaml})
 	}
 
 	rlSettings := settings.NewSettings()
 	newConfig := p.loader.Load(files, p.statsManager, rlSettings.MergeDomainConfigurations)
-
+	// 放入configUpdateEventChan
 	p.configUpdateEventChan <- &ConfigUpdateEventImpl{config: newConfig}
 }
 
